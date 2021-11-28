@@ -69,7 +69,7 @@ public class CameraSource {
    */
   private static final float ASPECT_RATIO_TOLERANCE = 0.01f;
 
-  protected Activity activity;
+  protected final Activity activity;
 
   private Camera camera;
 

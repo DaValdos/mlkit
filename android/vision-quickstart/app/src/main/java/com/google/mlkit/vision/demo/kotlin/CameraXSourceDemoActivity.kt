@@ -16,6 +16,7 @@
 
 package com.google.mlkit.vision.demo.kotlin
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInfo
@@ -43,14 +44,10 @@ import com.google.mlkit.vision.camera.DetectionTaskCallback
 import com.google.mlkit.vision.demo.GraphicOverlay
 import com.google.mlkit.vision.demo.InferenceInfoGraphic
 import com.google.mlkit.vision.demo.R
-import com.google.mlkit.vision.demo.kotlin.objectdetector.ObjectGraphic
 import com.google.mlkit.vision.demo.preference.PreferenceUtils
 import com.google.mlkit.vision.demo.preference.SettingsActivity
 import com.google.mlkit.vision.demo.preference.SettingsActivity.LaunchSource
-import com.google.mlkit.vision.objects.DetectedObject
-import com.google.mlkit.vision.objects.ObjectDetection
-import com.google.mlkit.vision.objects.ObjectDetector
-import com.google.mlkit.vision.objects.custom.CustomObjectDetectorOptions
+
 import java.util.ArrayList
 import java.util.Objects
 import kotlin.collections.List
@@ -60,14 +57,13 @@ import kotlin.collections.List
 @RequiresApi(VERSION_CODES.LOLLIPOP)
 class CameraXSourceDemoActivity :
   AppCompatActivity(),
-  ActivityCompat.OnRequestPermissionsResultCallback,
+  OnRequestPermissionsResultCallback,
   CompoundButton.OnCheckedChangeListener {
   private var previewView: PreviewView? = null
   private var graphicOverlay: GraphicOverlay? = null
   private var needUpdateGraphicOverlayImageSourceInfo = false
   private var lensFacing: Int = CameraSourceConfig.CAMERA_FACING_BACK
   private var cameraXSource: CameraXSource? = null
-  private var customObjectDetectorOptions: CustomObjectDetectorOptions? = null
   private var targetResolution: Size? = null
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -112,16 +108,21 @@ class CameraXSourceDemoActivity :
 
   public override fun onResume() {
     super.onResume()
-    if (cameraXSource != null &&
-      PreferenceUtils.getCustomObjectDetectorOptionsForLivePreview(this, localModel)
-        .equals(customObjectDetectorOptions) &&
-      PreferenceUtils.getCameraXTargetResolution(getApplicationContext(), lensFacing) != null &&
-      (
-        Objects.requireNonNull(
-            PreferenceUtils.getCameraXTargetResolution(getApplicationContext(), lensFacing)
-          ) == targetResolution
-        )
+
+    if (ActivityCompat.checkSelfPermission(
+        this,
+        Manifest.permission.CAMERA
+      ) != PackageManager.PERMISSION_GRANTED
     ) {
+      // TODO: Consider calling
+      //    ActivityCompat#requestPermissions
+      // here to request the missing permissions, and then overriding
+      //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+      //                                          int[] grantResults)
+      // to handle the case where the user grants the permission. See the documentation
+      // for ActivityCompat#requestPermissions for more details.
+      return
+
       cameraXSource!!.start()
     } else {
       createThenStartCameraXSource()
@@ -146,29 +147,21 @@ class CameraXSourceDemoActivity :
     if (cameraXSource != null) {
       cameraXSource!!.close()
     }
-    customObjectDetectorOptions = PreferenceUtils.getCustomObjectDetectorOptionsForLivePreview(
-      getApplicationContext(), localModel
-    )
-    val objectDetector: ObjectDetector = ObjectDetection.getClient(customObjectDetectorOptions!!)
-    var detectionTaskCallback: DetectionTaskCallback<List<DetectedObject>> =
-      DetectionTaskCallback<List<DetectedObject>> { detectionTask ->
-        detectionTask
-          .addOnSuccessListener { results -> onDetectionTaskSuccess(results) }
-          .addOnFailureListener { e -> onDetectionTaskFailure(e) }
-      }
-    val builder: CameraSourceConfig.Builder = CameraSourceConfig.Builder(
-      getApplicationContext(), objectDetector!!, detectionTaskCallback
-    )
-      .setFacing(lensFacing)
-    targetResolution = PreferenceUtils.getCameraXTargetResolution(
-      getApplicationContext(),
-      lensFacing
-    )
-    if (targetResolution != null) {
-      builder.setRequestedPreviewSize(targetResolution!!.width, targetResolution!!.height)
-    }
-    cameraXSource = CameraXSource(builder.build(), previewView!!)
     needUpdateGraphicOverlayImageSourceInfo = true
+    if (ActivityCompat.checkSelfPermission(
+        this,
+        Manifest.permission.CAMERA
+      ) != PackageManager.PERMISSION_GRANTED
+    ) {
+      // TODO: Consider calling
+      //    ActivityCompat#requestPermissions
+      // here to request the missing permissions, and then overriding
+      //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+      //                                          int[] grantResults)
+      // to handle the case where the user grants the permission. See the documentation
+      // for ActivityCompat#requestPermissions for more details.
+      return
+    }
     cameraXSource!!.start()
   }
 
@@ -218,35 +211,6 @@ class CameraXSourceDemoActivity :
     Log.i(TAG, "Permission granted!")
     createThenStartCameraXSource()
     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-  }
-
-  private fun onDetectionTaskSuccess(results: List<DetectedObject>) {
-    graphicOverlay!!.clear()
-    if (needUpdateGraphicOverlayImageSourceInfo) {
-      val size: Size = cameraXSource!!.getPreviewSize()!!
-      if (size != null) {
-        Log.d(TAG, "preview width: " + size.width)
-        Log.d(TAG, "preview height: " + size.height)
-        val isImageFlipped =
-          cameraXSource!!.getCameraFacing() == CameraSourceConfig.CAMERA_FACING_FRONT
-        if (isPortraitMode) {
-          // Swap width and height sizes when in portrait, since it will be rotated by
-          // 90 degrees. The camera preview and the image being processed have the same size.
-          graphicOverlay!!.setImageSourceInfo(size.height, size.width, isImageFlipped)
-        } else {
-          graphicOverlay!!.setImageSourceInfo(size.width, size.height, isImageFlipped)
-        }
-        needUpdateGraphicOverlayImageSourceInfo = false
-      } else {
-        Log.d(TAG, "previewsize is null")
-      }
-    }
-    Log.v(TAG, "Number of object been detected: " + results.size)
-    for (`object` in results) {
-      graphicOverlay!!.add(ObjectGraphic(graphicOverlay!!, `object`))
-    }
-    graphicOverlay!!.add(InferenceInfoGraphic(graphicOverlay!!))
-    graphicOverlay!!.postInvalidate()
   }
 
   private fun onDetectionTaskFailure(e: Exception) {

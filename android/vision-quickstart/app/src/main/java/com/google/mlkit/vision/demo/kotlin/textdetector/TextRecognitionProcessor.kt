@@ -29,7 +29,7 @@ import com.google.mlkit.vision.text.TextRecognizer
 import com.google.mlkit.vision.text.TextRecognizerOptionsInterface
 
 /** Processor for the text detector demo.  */
-class TextRecognitionProcessor(private val context: Context, textRecognizerOptions: TextRecognizerOptionsInterface) : VisionProcessorBase<Text>(context) {
+class TextRecognitionProcessor(context: Context, textRecognizerOptions: TextRecognizerOptionsInterface) : VisionProcessorBase<Text>(context) {
   private val textRecognizer: TextRecognizer = TextRecognition.getClient(textRecognizerOptions)
   private val shouldGroupRecognizedTextInBlocks: Boolean = PreferenceUtils.shouldGroupRecognizedTextInBlocks(context)
 
